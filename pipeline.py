@@ -12,11 +12,11 @@ class ProcessingFunc(object):
     argument options. The argument options are things such as type, range, 
     display, default, etc. to describe how to make the GUI for the function.
     """
-    def __init__(self, func, args):
+    def __init__(self, func, args, rets):
         super(ProcessingFunc, self).__init__()
         self.func = func
         self.args = args
-        self.ret = FuncRet()
+        self.ret = rets # Changed from: FuncRets()
 
     def run_func(self):
         """Runs the processing function, storing the return value as an 
@@ -27,7 +27,7 @@ class ProcessingFunc(object):
             args_list.append(arg.get_val())
         ret_arr = [self.func(*args_list)]
         for i, ret_val in enumerate(ret_arr):
-            self.ret[i].val = ret_val
+            self.ret[i].value = ret_val
 
 class FileDialogueLine(object):
     def __init__(self):
@@ -62,36 +62,17 @@ class FileDialogueLine(object):
     # def __del__(self):
     #     print('Deleting File Dialogue: ', id(self))
 
- 
-class FuncArgs(object):
-    """An Argument object to describe the type of parameters, defaults, 
-    and GUI options.
-
-    Args:
-        arg_type (str): String describing the type of the argument
-        gui_input (bool): Determines if parameter should be shown in the GUI
-        gui_type (str): The type of GUI input to use. Can be one of 
-            -- combo_box
-            -- check_box
-            -- radio_button
-            -- push_button
-            -- table_widget
-            -- line_edit
-            -- slider
-        gui_range (arr): A two-tuple describing the minimum and maximum 
-                values for a numeric parameter. 
-        default (any): The default value of the parameter. 
-    """
+class IO(object):
     def __init__(self, **kwargs):
         """Summary
         
         Args:
             **kwargs: Description
         """
-        super(FuncArgs, self).__init__()
+        super(IO, self).__init__()
 
-        self.arg_type = None
-        self.gui_input = None
+        self.io_type = None
+        self.gui_disp = None
         self.gui_type = None
 
         # Options for combo_box gui_type
@@ -104,11 +85,11 @@ class FuncArgs(object):
         self.default = None
         self.value = None
 
-        if 'arg_type' in kwargs:
-            self.arg_type = kwargs['arg_type']
+        if 'io_type' in kwargs:
+            self.io_type = kwargs['io_type']
 
-        if 'gui_input' in kwargs:
-            self.gui_input = kwargs['gui_input']
+        if 'gui_disp' in kwargs:
+            self.gui_disp = kwargs['gui_disp']
 
         if 'gui_type' in kwargs:
             self.gui_type = kwargs['gui_type']
@@ -142,7 +123,7 @@ class FuncArgs(object):
         # This is to check if it is an argument which was the return value 
         # of a previous stage in the pipeline. If this is true, the value 
         # should be extracted.
-        if isinstance(self.value, RetVal):
+        if isinstance(self.value, FuncRets):
             self.value = self.value.get_val()
 
         return self.value
@@ -192,31 +173,62 @@ class FuncArgs(object):
             # raise ValueError('gui_type must be specified.')
 
 
+
+
+
+class FuncArgs(IO):
+    """An Argument object to describe the type of parameters, defaults, 
+    and GUI options.
+
+    Args:
+        io_type (str): String describing the type of the argument
+        gui_disp (bool): Determines if parameter should be shown in the GUI
+        gui_type (str): The type of GUI input to use. Can be one of 
+            -- combo_box
+            -- check_box
+            -- radio_button
+            -- push_button
+            -- table_widget
+            -- line_edit
+            -- slider
+        gui_range (arr): A two-tuple describing the minimum and maximum 
+                values for a numeric parameter. 
+        default (any): The default value of the parameter. 
+    """
+    def __init__(self, **kwargs):
+        """Summary
+        
+        Args:
+            **kwargs: Description
+        """
+        super(FuncArgs, self).__init__(**kwargs)
+
     def __str__(self):
         return "FuncArgs Object: \n" + "Value: " +str(self.get_val())
 
     def __repr__(self):
         return self.__str__()
 
-class RetVal(object):
-    """
-    """
-    def __init__(self, val=None):
-        self.val = val
+# class RetVal(object):
+#     """
+#     """
+#     def __init__(self, val=None):
+#         self.val = val
 
-    def get_val(self):
-        return self.val
-    def __str__(self):
-        return "Retval Object: \n" + str(self.val)
+#     def get_val(self):
+#         print("Getting Retval")
+#         return self.val
+#     def __str__(self):
+#         return "Retval Object: \n" + str(self.val)
 
-    def __repr__(self):
-        return self.__str__()
+#     def __repr__(self):
+#         return self.__str__()
 
-class FuncRet(object):
+class FuncRets(IO):
     """
     """
     def __init__(self, **kwargs):
-        super(FuncRet, self).__init__()
+        super(FuncRets, self).__init__(**kwargs)
         if 'num_vals' in kwargs:
             self.num_vals = kwargs['num_vals']
         else:
@@ -227,19 +239,19 @@ class FuncRet(object):
     def __iter__(self):
         return self
 
-    def __getitem__(self, key):
-        if key < len(self.ret_vals):
-            return self.ret_vals[key]
-        else:
-            while key >= len(self.ret_vals):
-                self.ret_vals.append(RetVal())  # Add a RetVal object with 
-                                                # the attribute val 
-                                                # initialized as None, to 
-                                                # be written later
-            return self.ret_vals[key]
+    # def __getitem__(self, key):
+    #     if key < len(self.ret_vals):
+    #         return self.ret_vals[key]
+    #     else:
+    #         while key >= len(self.ret_vals):
+    #             self.ret_vals.append(RetVal())  # Add a RetVal object with 
+    #                                             # the attribute val 
+    #                                             # initialized as None, to 
+    #                                             # be written later
+    #         return self.ret_vals[key]
 
-    def __setitem__(self, key, value):
-        self.ret_vals[key].val = value
+    # def __setitem__(self, key, value):
+    #     self.ret_vals[key].val = value
 
 class ProcessingPipeline(object):
     """Contains an array of ProcessingFunc and an input image, as well 
@@ -286,7 +298,8 @@ class ProcessingPipeline(object):
 
     def update_funcs(self):
         if len(self.proc_funcs) == 0:
-            raise ValueError('There must be at least one processing function.')
+            raise ValueError('There must be at least one'+ \
+                'processing function.')
 
         for i, proc_func in enumerate(self.proc_funcs):
             proc_func.run_func()
@@ -316,27 +329,28 @@ def canny_edges(img, threshold1, threshold2, edges=None, apertureSize=3, L2gradi
 def main():
     # First function in the chain. Should take 
     file = '/home/max/Videos/VID_20190403_105950~2_no_audio(1).mp4'
-    f1_args = [FuncArgs(arg_type="str", gui_input=True, default=file, gui_type="file"), 
-                FuncArgs(arg_type="int", gui_input=True, gui_type="combo_box", gui_array=["One", "Two", "Three"], default="Two")]
+    f1_args = [FuncArgs(io_type="str", gui_disp=True, default=file, gui_type="file"), 
+                FuncArgs(io_type="int", gui_disp=True, gui_type="combo_box", gui_array=["One", "Two", "Three"], default="Two")]
 
-    # f1_rets = [] TODO: Make return values labeled in order to display them.
-    f1 = ProcessingFunc(load_img, f1_args)
+    f1_rets = [FuncRets(io_type="img")] #  TODO: Make return values labeled in order to display them.
+    f1 = ProcessingFunc(load_img, f1_args, f1_rets)
 
 
-    f2_args = [FuncArgs(arg_type="img", value=f1.ret[0])]
-    f2 = ProcessingFunc(to_gray, f2_args) # How to link return value of one function to the input of another
+    f2_args = [FuncArgs(io_type="img", value=f1_rets[0])]
+    f2_rets = [FuncRets(io_type="img")]
+    f2 = ProcessingFunc(to_gray, f2_args, f2_rets) # How to link return value of one function to the input of another
 
-    f3_args = [  FuncArgs(arg_type="img", value=f2.ret[0]),
-                    FuncArgs(arg_type="double", gui_type="slider", gui_input=True, gui_range=[0,100]),
-                    FuncArgs(arg_type="double", gui_input=True, gui_range=[0,100]),
-                    FuncArgs(arg_type="array", default=None),
-                    FuncArgs(arg_type="int", default=3, gui_range=[3,10]),
-                    FuncArgs(arg_type="bool", default=False, gui_input=True)
-                    ]
+    # f3_args = [  FuncArgs(io_type="img", value=f2.ret[0]),
+    #                 FuncArgs(io_type="double", gui_type="slider", gui_disp=True, gui_range=[0,100]),
+    #                 FuncArgs(io_type="double", gui_disp=True, gui_range=[0,100]),
+    #                 FuncArgs(io_type="array", default=None),
+    #                 FuncArgs(io_type="int", default=3, gui_range=[3,10]),
+    #                 FuncArgs(io_type="bool", default=False, gui_disp=True)
+    #                 ]
 
-    f3 = ProcessingFunc(canny_edges, f3_args)
+    # f3 = ProcessingFunc(canny_edges, f3_args)
 
-    pp = ProcessingPipeline([f1, f2, f3])
+    pp = ProcessingPipeline([f1, f2]) #, f2, f3])
 
     pp.run_pipeline()
 
