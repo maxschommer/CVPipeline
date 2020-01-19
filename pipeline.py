@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QFileDialog)
+from PyQt5 import QtGui, QtCore
+from PyQt5.QtCore import Qt
 import numpy as np
 import cv2
 
@@ -16,7 +18,7 @@ class ProcessingFunc(object):
         super(ProcessingFunc, self).__init__()
         self.func = func
         self.args = args
-        self.ret = rets # Changed from: FuncRets()
+        self.rets = rets # Changed from: FuncRets()
 
     def run_func(self):
         """Runs the processing function, storing the return value as an 
@@ -25,10 +27,19 @@ class ProcessingFunc(object):
         args_list = []
         for arg in self.args:
             args_list.append(arg.get_val())
+
+        # TODO: Check if this is correct, and works for returning multiple
+        # items.
         ret_arr = [self.func(*args_list)]
         for i, ret_val in enumerate(ret_arr):
-            self.ret[i].value = ret_val
+            self.rets[i].value = ret_val
 
+
+# TODO: Architect better. A file dialogue needs is a graphical object which 
+# sets a text box to a value. This text box is currently not linked to the 
+# actual input of the function the dialogue is attached to. This input should, 
+# when changed, either set the actual GUI to run an update funcition, which
+# then takes the some property of FileDialogueLine 
 class FileDialogueLine(object):
     def __init__(self):
         super(FileDialogueLine, self).__init__()
@@ -61,6 +72,8 @@ class FileDialogueLine(object):
 
     # def __del__(self):
     #     print('Deleting File Dialogue: ', id(self))
+
+
 
 class IO(object):
     def __init__(self, **kwargs):
@@ -129,7 +142,10 @@ class IO(object):
         return self.value
 
 
-
+    # TODO: The value attribute needs to be tied to the gui component somehow.
+    # Test with FileDialogue since it already has a connected class. Maybe
+    # remake the connection with inheritance. Should the FileDialogue inherit
+    # the FuncArgs class and then set the attribute value directly? 
     def get_gui_components(self, component_type="default"):
         """Retrieves the GUI components needed for the argument to be edited.
         
@@ -167,6 +183,24 @@ class IO(object):
 
             if self.gui_type == "check_box":
                 pass
+
+            if self.gui_type == "img":
+                label = QLabel()
+                if self.value is not None:
+                    img = QtGui.QImage(self.value.data, 
+                            self.value.shape[1], 
+                            self.value.shape[0], 
+                            QtGui.QImage.Format_RGB888).rgbSwapped()
+                    pmap = QtGui.QPixmap.fromImage(img)
+
+                    # For now, the image will just be scaled. In the future it 
+                    # should be fully scrollable and zoomable for whatever size 
+                    # image is loaded.
+                    pmap = pmap.scaled(640, 480, 
+                            Qt.KeepAspectRatio, 
+                            Qt.FastTransformation)
+                    label.setPixmap(pmap)
+                return [label]
 
         else:
             pass
@@ -262,7 +296,7 @@ class ProcessingPipeline(object):
         self.proc_funcs = proc_funcs
 
     def run_pipeline(self):
-        self.update_funcs()
+        # self.update_funcs() # Temporary until auto-updating is built
 
         app = QApplication([])
         window = QWidget()
@@ -282,7 +316,20 @@ class ProcessingPipeline(object):
 
             tab_h_boxs.append(QGridLayout())
             tab_h_boxs[-1].setContentsMargins(5, 5, 5, 5)
-            for i, arg in enumerate(func.args):
+
+            i = 0
+            # Return values are displayed first
+            for ret in func.rets:
+                i += 1
+                gui_comps = ret.get_gui_components()
+                stored_gui_comps.append(gui_comps)
+                if gui_comps is not None:
+                    for j, gui_comp in enumerate(gui_comps):
+                        tab_h_boxs[-1].addWidget(gui_comp, i, j)
+
+            # Inputs are displayed second
+            for arg in func.args:
+                i += 1
                 gui_comps = arg.get_gui_components()
                 stored_gui_comps.append(gui_comps)
                 if gui_comps is not None:
@@ -332,7 +379,7 @@ def main():
     f1_args = [FuncArgs(io_type="str", gui_disp=True, default=file, gui_type="file"), 
                 FuncArgs(io_type="int", gui_disp=True, gui_type="combo_box", gui_array=["One", "Two", "Three"], default="Two")]
 
-    f1_rets = [FuncRets(io_type="img")] #  TODO: Make return values labeled in order to display them.
+    f1_rets = [FuncRets(io_type="img", gui_type="img")]
     f1 = ProcessingFunc(load_img, f1_args, f1_rets)
 
 
